@@ -159,7 +159,7 @@ def perception_step(Rover):
     warped = perspect_transform(image, source, destination)
 
     # Navigable terrain
-    threshed = color_thresh(warped, rgb_thresh=(140, 140, 140))
+    threshed = color_thresh(warped, rgb_thresh=(200, 170, 155))
     Rover.vision_image[:, :, blue] = threshed * 255
     xpix, ypix = rover_coords(threshed)
     x_world, y_world = pix_to_world(
@@ -190,7 +190,7 @@ def perception_step(Rover):
     )
     if mappable:
         Rover.worldmap[y_world, x_world, red] += 1
-        # Rover.worldmap[Rover.worldmap[:, :, blue] > 0, red] = 0
+        Rover.worldmap[Rover.worldmap[:, :, blue] > 0, red] = 0
 
     # Rocks
     threshed = rock_thresh(warped)
