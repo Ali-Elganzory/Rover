@@ -1,10 +1,12 @@
+from math import cos, pi
 import numpy as np
 import cv2
 
+from supporting_functions import deg_to_rad
+
+
 # Identify pixels above or below the threshold
 # Threshold of RGB > 160 does a nice job of identifying ground pixels only
-
-
 def color_thresh(img, rgb_thresh=(160, 160, 160), greater=True):
     # Create an array of zeros same xy size as img, but single channel
     color_select = np.zeros_like(img[:, :, 0])
@@ -124,6 +126,13 @@ def perception_step(Rover):
     # Rover.nav_dists = rover_centric_pixel_distances
     # Rover.nav_angles = rover_centric_angles
 
+    ANGLE_THRESH = 0.9998476951563913
+    mappable = cos(deg_to_rad(Rover.roll)) > ANGLE_THRESH \
+        and cos(deg_to_rad(Rover.pitch)) > ANGLE_THRESH
+    print("Pitch: ", Rover.pitch,
+          " Roll: ", Rover.roll)
+    print("Is scene mappable: ", mappable)
+
     image = Rover.img
 
     dst = 6
@@ -150,7 +159,7 @@ def perception_step(Rover):
     warped = perspect_transform(image, source, destination)
 
     # Navigable terrain
-    threshed = color_thresh(warped, rgb_thresh=(160, 160, 160))
+    threshed = color_thresh(warped, rgb_thresh=(140, 140, 140))
     Rover.vision_image[:, :, blue] = threshed * 255
     xpix, ypix = rover_coords(threshed)
     x_world, y_world = pix_to_world(
@@ -162,8 +171,9 @@ def perception_step(Rover):
         Rover.worldmap.shape[0],
         SCALE,
     )
-    Rover.worldmap[y_world, x_world, blue] += 1
     Rover.nav_dists, Rover.nav_angles = to_polar_coords(xpix, ypix)
+    if mappable:
+        Rover.worldmap[y_world, x_world, blue] += 1
 
     # Obstacles
     threshed = color_thresh(warped, rgb_thresh=(100, 100, 100), greater=False)
@@ -178,11 +188,13 @@ def perception_step(Rover):
         Rover.worldmap.shape[0],
         SCALE,
     )
-    Rover.worldmap[y_world, x_world, red] += 1
+    if mappable:
+        Rover.worldmap[y_world, x_world, red] += 1
+        # Rover.worldmap[Rover.worldmap[:, :, blue] > 0, red] = 0
 
     # Rocks
     threshed = rock_thresh(warped)
-    threshed = color_thresh(threshed, rgb_thresh=(50, 50, -1))
+    threshed = color_thresh(threshed, rgb_thresh=(30, 30, -1))
     Rover.vision_image[:, :, green] = threshed * 255
     xpix, ypix = rover_coords(threshed)
     x_world, y_world = pix_to_world(
@@ -194,7 +206,8 @@ def perception_step(Rover):
         Rover.worldmap.shape[0],
         SCALE,
     )
-    Rover.worldmap[y_world, x_world, green] += 1
     Rover.rock_dists, Rover.rock_angles = to_polar_coords(xpix, ypix)
+    if mappable:
+        Rover.worldmap[y_world, x_world, green] += 1
 
     return Rover
